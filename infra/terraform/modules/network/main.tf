@@ -1,0 +1,123 @@
+data "aws_region" "current" {}
+data "aws_availability_zones" "available" {}
+
+locals {
+  azs = slice(data.aws_availability_zones.available.names, 0, var.az_count)
+
+  # Interface endpoints commonly needed for private ECS/Fargate
+  interface_services = [
+    "ecr.api",
+    "ecr.dkr",
+    "logs",
+    "secretsmanager",
+    "ssm",
+    "ec2",
+    "ecs",
+    "ecs-agent",
+    "ecs-telemetry",
+    "sts"
+  ]
+}
+
+# ---------------- VPC ----------------
+resource "aws_vpc" "main" {
+  cidr_block           = var.cidr_block
+  enable_dns_support   = true
+  enable_dns_hostnames = true
+
+  tags = merge(var.tags, {
+    Name = "${var.name}-vpc"
+  })
+}
+
+# ------------- Private Subnets -------------
+resource "aws_subnet" "private_subnets" {
+  for_each                            = toset(local.azs)
+  vpc_id                              = aws_vpc.main.id
+  availability_zone                   = each.value
+  cidr_block                          = cidrsubnet(var.cidr_block, var.subnet_newbits, index(local.azs, each.value))
+  map_public_ip_on_launch             = false
+  private_dns_hostname_type_on_launch = "resource-name"
+
+  tags = merge(var.tags, {
+    Name = "${var.name}-private-${each.value}"
+    Tier = "private"
+  })
+}
+
+# ------------- Route Tables (private only) -------------
+resource "aws_route_table" "private_rts" {
+  for_each = aws_subnet.private_subnets
+  vpc_id   = aws_vpc.main.id
+
+  tags = merge(var.tags, {
+    Name = "${var.name}-rt-${each.key}"
+  })
+}
+
+resource "aws_route_table_association" "private_assoc" {
+  for_each       = aws_subnet.private_subnets
+  subnet_id      = each.value.id
+  route_table_id = aws_route_table.private_rts[each.key].id
+}
+
+# ------------- VPC Endpoints (optional) -------------
+
+# S3 Gateway endpoint (for ECR layer pulls)
+resource "aws_vpc_endpoint" "s3_gateway" {
+  count             = var.enable_endpoints ? 1 : 0
+  vpc_id            = aws_vpc.main.id
+  service_name      = "com.amazonaws.${data.aws_region.current.name}.s3"
+  vpc_endpoint_type = "Gateway"
+
+  tags = merge(var.tags, {
+    Name = "${var.name}-s3-endpoint"
+  })
+}
+
+resource "aws_vpc_endpoint_route_table_association" "s3_assoc" {
+  for_each        = var.enable_endpoints ? aws_route_table.private_rts : {}
+  vpc_endpoint_id = aws_vpc_endpoint.s3_gateway[0].id
+  route_table_id  = each.value.id
+}
+
+# SG for Interface Endpoints
+resource "aws_security_group" "vpce_sg" {
+  count       = var.enable_endpoints ? 1 : 0
+  name        = "${var.name}-vpce-sg"
+  description = "Security group for VPC Interface Endpoints"
+  vpc_id      = aws_vpc.main.id
+
+  ingress {
+    from_port   = 443
+    to_port     = 443
+    protocol    = "tcp"
+    cidr_blocks = [aws_vpc.main.cidr_block]
+  }
+
+  egress {
+    from_port   = 0
+    to_port     = 0
+    protocol    = "-1"
+    cidr_blocks = [aws_vpc.main.cidr_block]
+  }
+
+  tags = merge(var.tags, {
+    Name = "${var.name}-vpce-sg"
+  })
+}
+
+# Interface endpoints (private HTTPS to AWS APIs)
+resource "aws_vpc_endpoint" "interface_endpoints" {
+  for_each            = var.enable_endpoints ? toset(local.interface_services) : []
+  vpc_id              = aws_vpc.main.id
+  service_name        = "com.amazonaws.${data.aws_region.current.name}.${each.value}"
+  vpc_endpoint_type   = "Interface"
+  subnet_ids          = [for s in aws_subnet.private_subnets : s.id]
+  security_group_ids  = [aws_security_group.vpce_sg[0].id]
+  private_dns_enabled = true
+
+  tags = merge(var.tags, {
+    Name = "${var.name}-${each.value}-ep"
+  })
+}

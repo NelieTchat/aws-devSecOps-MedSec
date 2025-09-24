@@ -1,0 +1,54 @@
+# OS / Editor junk
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+.vscode/
+.idea/
+
+# Node.js app
+app/node_modules/
+app/npm-debug.log
+app/yarn-error.log
+
+# Python (Ansible, scripts)
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+*.log
+
+# Terraform
+*.tfstate
+*.tfstate.*
+.crash
+*.backup
+.terraform/
+.terraform.lock.hcl
+
+# Terraform variable files
+*.tfvars
+*.tfvars.json
+
+# But allow checked-in examples
+!*.example.tfvars
+
+# Ansible
+*.retry
+
+# Docker
+*.tar
+*.bak
+*.old
+
+# GitHub Actions
+# (sometimes caches end up locally — safe to ignore)
+.github/workflows/*.tmp
+
+# Secrets / keys
+*.pem
+*.key
+*.crt
+*.csr
+.env
+secrets.yaml
