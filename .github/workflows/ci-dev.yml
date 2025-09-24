@@ -1,0 +1,37 @@
+name: ci-dev
+on:
+  push:
+    branches: [ "dev" ]
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
+    env:
+      AWS_REGION: us-west-2
+      ECR_REPO: medsec-portal-dev
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.CI_ROLE_ARN }}   # set this secret to the Terraform output ci_role_arn
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Login to ECR
+        id: ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build image
+        run: |
+          docker build -t $ECR_REPO:dev-${GITHUB_SHA::7} ./app
+
+      - name: Tag and push
+        run: |
+          ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
+          REPO_URI=$ACCOUNT.dkr.ecr.${AWS_REGION}.amazonaws.com/$ECR_REPO
+          docker tag $ECR_REPO:dev-${GITHUB_SHA::7} $REPO_URI:dev-${GITHUB_SHA::7}
+          docker push $REPO_URI:dev-${GITHUB_SHA::7}
