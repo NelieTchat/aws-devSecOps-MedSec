@@ -18,7 +18,7 @@ module "ecr_portal" {
 module "iam_ci" {
   source = "../../modules/iam-gh-oidc"
   name   = "medsec-dev-ci"
-  repo   = "YOURORG/YOURREPO"   # must be your actual GitHub org/repo
+  repo   = "NelieTchat/aws-devSecOps-MedSec"   # must be your actual GitHub org/repo
   branch = "dev"
   tags   = local.common_tags
 }
