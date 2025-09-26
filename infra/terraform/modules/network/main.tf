@@ -29,6 +29,47 @@ resource "aws_vpc" "main" {
     Name = "${var.name}-vpc"
   })
 }
+# ------------- Internet Gateway -------------
+# Internet Gateway (only if public subnets enabled)
+resource "aws_internet_gateway" "igw" {
+  count  = var.enable_public_subnets ? 1 : 0
+  vpc_id = aws_vpc.main.id
+  tags   = merge(var.tags, { Name = "${var.name}-igw" })
+}
+
+# ------------- Public Subnets -------------
+resource "aws_subnet" "public_subnets" {
+  for_each                  = var.enable_public_subnets ? toset(local.azs) : []
+  vpc_id                    = aws_vpc.main.id
+  availability_zone         = each.value
+  cidr_block                = cidrsubnet(var.cidr_block, var.public_subnet_newbits, 200 + index(local.azs, each.value))
+  map_public_ip_on_launch   = true
+  tags = merge(var.tags, {
+    Name = "${var.name}-public-${each.value}"
+    Tier = "public"
+  })
+}
+
+# One public route table, 0.0.0.0/0 via IGW
+resource "aws_route_table" "public_rt" {
+  count = var.enable_public_subnets ? 1 : 0
+  vpc_id = aws_vpc.main.id
+  tags = merge(var.tags, { Name = "${var.name}-public-rt" })
+}
+
+resource "aws_route" "public_igw" {
+  count                  = var.enable_public_subnets ? 1 : 0
+  route_table_id         = aws_route_table.public_rt[0].id
+  destination_cidr_block = "0.0.0.0/0"
+  gateway_id             = aws_internet_gateway.igw[0].id
+}
+
+resource "aws_route_table_association" "public_assoc" {
+  for_each       = aws_subnet.public_subnets
+  subnet_id      = each.value.id
+  route_table_id = aws_route_table.public_rt[0].id
+}
+
 
 # ------------- Private Subnets -------------
 resource "aws_subnet" "private_subnets" {

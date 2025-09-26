@@ -14,3 +14,9 @@ variable "tags" {
   default     = {}
   description = "Tags applied to the repository"
 }
+
+variable "force_delete" {
+  type        = bool
+  default     = false
+  description = "Allow repo deletion even if images exist (use true in dev only)."
+}

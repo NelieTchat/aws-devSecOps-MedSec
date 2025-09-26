@@ -4,4 +4,6 @@ locals {
     Env     = "dev"
     Owner   = "platform"
   }
+
+  image_tag = "dev-50ffcd9"
 }

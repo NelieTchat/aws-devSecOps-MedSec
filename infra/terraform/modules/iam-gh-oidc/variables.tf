@@ -19,3 +19,10 @@ variable "tags" {
   default     = {}
   description = "Common tags applied to all IAM resources"
 }
+
+variable "force_delete" {
+  type        = bool
+  default     = false
+  description = "Allow Terraform to delete the repo even if images exist (dev only)."
+}
+

@@ -20,6 +20,18 @@ variable "subnet_newbits" {
   description = "Newbits for private subnet sizing (8 => /24 from a /16)."
 }
 
+variable "enable_public_subnets" {
+  type        = bool
+  default     = true
+  description = "Create public subnets + IGW for ALB."
+}
+
+variable "public_subnet_newbits" {
+  type        = number
+  default     = 8
+  description = "Newbits for public subnets (8 => /24 from a /16)."
+}
+
 variable "enable_endpoints" {
   type        = bool
   default     = true
