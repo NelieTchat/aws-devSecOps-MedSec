@@ -1,16 +1,13 @@
-FROM public.ecr.aws/docker/library/node:18-alpine
+# app/Dockerfile
+FROM node:20-alpine
 WORKDIR /usr/src/app
 
-RUN apk add --no-cache curl
-
+# copy manifests first to leverage cache
 COPY package*.json ./
-RUN npm ci --only=production
+RUN npm ci --omit=dev
 
+# then copy the rest
 COPY . .
 
-RUN addgroup -S nodegrp && adduser -S nodeuser -G nodegrp
-USER nodeuser
-
 EXPOSE 8080
-ENV NODE_ENV=production
 CMD ["node", "index.js"]
