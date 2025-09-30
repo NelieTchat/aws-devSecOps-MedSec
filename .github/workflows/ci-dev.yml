@@ -43,6 +43,7 @@ jobs:
           restore-keys: |
             trivy-${{ runner.os }}-
 
+      # Filesystem scan (your source tree)
       - name: Trivy scan (filesystem)
         uses: aquasecurity/trivy-action@0.28.0
         with:
@@ -52,20 +53,20 @@ jobs:
           vuln-type: 'os,library'
           severity: 'HIGH,CRITICAL'
           ignore-unfixed: true
-          trivyignores: ./app/.trivyignore
+          trivyignores: ./app/.trivyignore   # optional if you use .trivyignore
           exit-code: '1'
 
+      # Image scan (the built Docker image)
       - name: Trivy scan (image)
         uses: aquasecurity/trivy-action@0.28.0
         with:
+          scan-type: image
           image-ref: ${{ env.ECR_REPO_NAME }}:dev-${{ steps.vars.outputs.short_sha }}
           scanners: 'vuln'
           vuln-type: 'os,library'
           severity: 'HIGH,CRITICAL'
           ignore-unfixed: true
-          # Skip global Node tool dirs where this transitive may live
-          skip-dirs: /usr/local/lib/node_modules,/usr/lib/node_modules
-          trivyignores: ./app/.trivyignore
+          trivyignores: ./app/.trivyignore   # optional if you use .trivyignore
           exit-code: '1'
 
       - name: Tag & Push to ECR
@@ -79,5 +80,6 @@ jobs:
           REPO_URI="${REGISTRY}/${ECR_REPO_NAME}"
           LOCAL_IMAGE="${ECR_REPO_NAME}:dev-${SHORT_SHA}"
           REMOTE_IMAGE="${REPO_URI}:dev-${SHORT_SHA}"
+
           docker tag "${LOCAL_IMAGE}" "${REMOTE_IMAGE}"
           docker push "${REMOTE_IMAGE}"
