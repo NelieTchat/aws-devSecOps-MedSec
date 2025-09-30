@@ -1,11 +1,15 @@
-FROM node:20-alpine
+# app/Dockerfile
+FROM node:20-alpine3.20
 WORKDIR /usr/src/app
 
-# copy manifests first (ensures lockfile is used)
+# Apply OS security patches (shrinks Trivy OS CVEs)
+RUN apk update && apk upgrade --no-cache
+
+# Install prod deps only (deterministic via lockfile)
 COPY package*.json ./
 RUN npm ci --omit=dev
 
-# then copy the app
+# Copy the rest of the app
 COPY . .
 
 EXPOSE 8080
