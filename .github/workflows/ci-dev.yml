@@ -1,7 +1,7 @@
 name: ci-dev
 on:
   push:
-    branches: [ "dev" ]
+    branches: ["dev"]
 
 jobs:
   build-and-push:
@@ -11,24 +11,42 @@ jobs:
       contents: read
     env:
       AWS_REGION: us-west-2
-      ECR_REPO: medsec-portal-dev
+      # ECR repository **name** only (no account/registry prefix)
+      ECR_REPO_NAME: medsec-portal-dev
+
     steps:
       - uses: actions/checkout@v4
 
       - name: Configure AWS (OIDC)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.CI_ROLE_ARN }}   # set this secret to the Terraform output ci_role_arn
+          role-to-assume: ${{ secrets.CI_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - name: Login to ECR
+      - name: Login to Amazon ECR
         id: ecr
         uses: aws-actions/amazon-ecr-login@v2
 
-      - name: Build image
+      - name: Compute short SHA
+        id: vars
+        shell: bash
+        run: echo "short_sha=$(echo "$GITHUB_SHA" | cut -c1-7)" >> "$GITHUB_OUTPUT"
+
+      # Optional: Trivy cache to speed up scans
+      - name: Cache Trivy DB
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/trivy
+          key: trivy-${{ runner.os }}-${{ env.AWS_REGION }}-${{ github.ref_name }}-${{ github.run_id }}
+          restore-keys: |
+            trivy-${{ runner.os }}-${{ env.AWS_REGION }}-${{ github.ref_name }}-
+            trivy-${{ runner.os }}-
+
+      - name: Build Docker image
+        shell: bash
         run: |
-          docker build -t $ECR_REPO:dev-${GITHUB_SHA::7} ./app
-    
+          docker build -t ${{ env.ECR_REPO_NAME }}:dev-${{ steps.vars.outputs.short_sha }} ./app
+
       - name: Trivy scan (filesystem)
         uses: aquasecurity/trivy-action@0.28.0
         with:
@@ -39,21 +57,36 @@ jobs:
           ignore-unfixed: true
           exit-code: '1'
 
-      - name: Build image
-        run: docker build -t $ECR_REPO:dev-${GITHUB_SHA::7} ./app
-
       - name: Trivy scan (image)
         uses: aquasecurity/trivy-action@0.28.0
         with:
-          image-ref: $ECR_REPO:dev-${GITHUB_SHA::7}
+          # NOTE: use workflow expressions here (not $VAR)
+          image-ref: ${{ env.ECR_REPO_NAME }}:dev-${{ steps.vars.outputs.short_sha }}
           vuln-type: 'os,library'
           severity: 'HIGH,CRITICAL'
           ignore-unfixed: true
           exit-code: '1'
+          # For faster scans (no secret scanning), you could add:
+          # scanners: 'vuln'
 
-      - name: Tag and push
+      - name: Tag & Push to ECR
+        shell: bash
+        env:
+          SHORT_SHA: ${{ steps.vars.outputs.short_sha }}
+          REGISTRY: ${{ steps.ecr.outputs.registry }} # e.g. 123456789012.dkr.ecr.us-west-2.amazonaws.com
         run: |
-          ACCOUNT=$(aws sts get-caller-identity --query Account --output text)
-          REPO_URI=$ACCOUNT.dkr.ecr.${AWS_REGION}.amazonaws.com/$ECR_REPO
-          docker tag $ECR_REPO:dev-${GITHUB_SHA::7} $REPO_URI:dev-${GITHUB_SHA::7}
-          docker push $REPO_URI:dev-${GITHUB_SHA::7}
+          set -euo pipefail
+
+          REPO_URI="${REGISTRY}/${ECR_REPO_NAME}"
+          LOCAL_IMAGE="${ECR_REPO_NAME}:dev-${SHORT_SHA}"
+          REMOTE_IMAGE="${REPO_URI}:dev-${SHORT_SHA}"
+
+          echo "Tagging ${LOCAL_IMAGE} -> ${REMOTE_IMAGE}"
+          docker tag "${LOCAL_IMAGE}" "${REMOTE_IMAGE}"
+
+          echo "Pushing ${REMOTE_IMAGE}"
+          docker push "${REMOTE_IMAGE}"
+
+          # (Optional) also push a mutable tag for your dev env
+          # docker tag "${LOCAL_IMAGE}" "${REPO_URI}:dev-latest"
+          # docker push "${REPO_URI}:dev-latest"
