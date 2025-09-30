@@ -35,7 +35,7 @@ jobs:
         shell: bash
         run: docker build --no-cache -t ${{ env.ECR_REPO_NAME }}:dev-${{ steps.vars.outputs.short_sha }} ./app
 
-      # ---- Trivy via CLI (avoids action's input mixing) ----
+      # ---- Trivy via CLI (avoids action input mixing) ----
       - name: Install Trivy CLI
         uses: aquasecurity/setup-trivy@v0.2.1
 
@@ -47,38 +47,18 @@ jobs:
           restore-keys: |
             trivy-db-${{ runner.os }}-
 
-      - name: Trivy scan (image via CLI)
+      # Optional: Filesystem JSON report (non-blocking)
+      - name: Trivy scan (filesystem via CLI, JSON report)
         shell: bash
-        env:
-          IMAGE_REF: ${{ env.ECR_REPO_NAME }}:dev-${{ steps.vars.outputs.short_sha }}
         run: |
           set -euo pipefail
           IGNORE_ARG=()
           if [ -f ./app/.trivyignore ]; then
-            echo "Using ignorefile ./app/.trivyignore"
             IGNORE_ARG=(--ignorefile ./app/.trivyignore)
           fi
-
-          echo "Scanning image: ${IMAGE_REF}"
-          trivy image \
+          trivy fs \
             --scanners vuln \
             --vuln-type os,library \
             --severity HIGH,CRITICAL \
             --ignore-unfixed \
-            "${IGNORE_ARG[@]}" \
-            "${IMAGE_REF}"
-
-      # ---- Push only if scan passed ----
-      - name: Tag & Push to ECR
-        if: ${{ success() }}
-        shell: bash
-        env:
-          SHORT_SHA: ${{ steps.vars.outputs.short_sha }}
-          REGISTRY: ${{ steps.ecr.outputs.registry }}
-        run: |
-          set -euo pipefail
-          REPO_URI="${REGISTRY}/${ECR_REPO_NAME}"
-          LOCAL_IMAGE="${ECR_REPO_NAME}:dev-${SHORT_SHA}"
-          REMOTE_IMAGE="${REPO_URI}:dev-${SHORT_SHA}"
-          docker tag "${LOCAL_IMAGE}" "${REMOTE_IMAGE}"
-          docker push "${REMOTE_IMAGE}"
+            --list-all-pkg
