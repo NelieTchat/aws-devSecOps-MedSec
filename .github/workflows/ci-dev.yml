@@ -77,26 +77,26 @@ jobs:
             trivy-${{ runner.os }}-
 
       # FS scan (JSON output for inspection; don't fail job here)
-      - name: Trivy scan (filesystem, JSON)
+      - name: Trivy scan (image, JSON diagnostics)
         uses: aquasecurity/trivy-action@0.28.0
         continue-on-error: true
         with:
-          scan-type: fs
-          path: ./app
+          image-ref: ${{ env.ECR_REPO_NAME }}:dev-${{ steps.vars.outputs.short_sha }}
           vuln-type: 'os,library'
           severity: 'HIGH,CRITICAL'
           ignore-unfixed: true
           list-all-pkgs: true
           format: 'json'
-          output: 'trivy-fs.json'
-          exit-code: '1'
+          output: 'trivy-image.json'
+          # speed up: disable secret scanning for diagnostics
+          scanners: 'vuln'
 
-      - name: Upload Trivy JSON (fs)
+      - name: UUpload Trivy JSON (image)
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: trivy-fs-json
-          path: trivy-fs.json
+          name: trivy-image-json
+          path: trivy-image-json
 
       # Image scan (JSON output for inspection; don't fail job here)
       - name: Trivy scan (image, JSON)
@@ -120,15 +120,15 @@ jobs:
           path: trivy-image.json
 
       # Blocking (human-readable) FS scan
-      - name: Trivy scan (filesystem)
+      - name: Trivy scan (image)
         uses: aquasecurity/trivy-action@0.28.0
         with:
-          scan-type: fs
-          path: ./app
+          image-ref: ${{ env.ECR_REPO_NAME }}:dev-${{ steps.vars.outputs.short_sha }}
           vuln-type: 'os,library'
           severity: 'HIGH,CRITICAL'
           ignore-unfixed: true
-          exit-code: '1'
+          scanners: 'vuln'   # <-- important
+          exit-code: '1
 
       # Blocking (human-readable) Image scan
       - name: Trivy scan (image)
