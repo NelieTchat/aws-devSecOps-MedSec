@@ -37,4 +37,4 @@ jobs:
       - name: Build Docker image
         shell: bash
         run: |
-          docker bu
+          run: docker build --no-cache -t ${{ env.ECR_REPO_NAME }}:dev-${{ steps.vars.outputs.short_sha }} ./app
