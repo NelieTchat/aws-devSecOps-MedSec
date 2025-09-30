@@ -5,5 +5,5 @@ locals {
     Owner   = "platform"
   }
 
-  image_tag = "dev-50ffcd9"
+  image_tag = "dev-b5cff4e"
 }
