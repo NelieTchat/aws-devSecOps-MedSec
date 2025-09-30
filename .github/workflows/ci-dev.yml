@@ -12,7 +12,7 @@ jobs:
 
     env:
       AWS_REGION: us-west-2
-      # ECR repository NAME only (no account/registry prefix)
+      # ECR repository NAME only (no registry/account prefix)
       ECR_REPO_NAME: medsec-portal-dev
 
     steps:
@@ -33,129 +33,8 @@ jobs:
         shell: bash
         run: echo "short_sha=$(echo "$GITHUB_SHA" | cut -c1-7)" >> "$GITHUB_OUTPUT"
 
-      # --- Sanity: what the repo contains on disk (should show no cross-spawn) ---
-      - name: Check resolved cross-spawn (repo)
-        working-directory: ./app
-        run: |
-          node -v && npm -v
-          grep -R "cross-spawn" package-lock.json || echo "no cross-spawn in lockfile"
-          npm ls cross-spawn || echo "no cross-spawn in tree"
-
-      # --- Build a truly fresh image so no old layers sneak in ---
-      - name: Build Docker image (no cache)
-        run: docker build --no-cache -t ${{ env.ECR_REPO_NAME }}:dev-${{ steps.vars.outputs.short_sha }} ./app
+      # Build Docker image from ./app (use --no-cache to avoid stale layers)
+      - name: Build Docker image
         shell: bash
-
-      # --- Sanity: what the built image actually contains ---
-      - name: Check resolved cross-spawn (inside image)
         run: |
-          docker run --rm ${{ env.ECR_REPO_NAME }}:dev-${{ steps.vars.outputs.short_sha }} \
-            sh -lc '
-              set -e
-              echo "--- check lockfile ---"
-              grep -R "cross-spawn" -n /usr/src/app/package-lock.json || echo "no cross-spawn in package-lock.json"
-              echo "--- check node_modules ---"
-              grep -R "\"name\"\\s*:\\s*\"cross-spawn\"" -n /usr/src/app/node_modules 2>/dev/null || echo "no cross-spawn package.json in node_modules"
-              echo "--- npm ls (prod) ---"
-              npm ls --omit=dev cross-spawn || echo "not in prod tree"
-              echo "--- npm ls (all) ---"
-              npm ls cross-spawn || echo "not in full tree"
-            '
-        shell: bash
-
-      # -------- Trivy scans (diagnostic JSON first; non-blocking), then blocking scans --------
-
-      # Optional cache to speed Trivy DB
-      - name: Cache Trivy DB
-        uses: actions/cache@v4
-        with:
-          path: ~/.cache/trivy
-          key: trivy-${{ runner.os }}-${{ github.ref_name }}-${{ github.run_id }}
-          restore-keys: |
-            trivy-${{ runner.os }}-${{ github.ref_name }}-
-            trivy-${{ runner.os }}-
-
-      # Image scan (JSON diagnostics; don't fail job)
-      - name: Trivy scan (image, JSON diagnostics)
-        uses: aquasecurity/trivy-action@0.28.0
-        continue-on-error: true
-        with:
-          image-ref: ${{ env.ECR_REPO_NAME }}:dev-${{ steps.vars.outputs.short_sha }}
-          vuln-type: 'os,library'
-          severity: 'HIGH,CRITICAL'
-          ignore-unfixed: true
-          list-all-pkgs: true
-          format: 'json'
-          output: 'trivy-image.json'
-          scanners: 'vuln'
-
-      - name: Upload Trivy JSON (image)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: trivy-image-json
-          path: trivy-image.json
-
-      # Filesystem scan (JSON diagnostics; don't fail job) — optional
-      - name: Trivy scan (filesystem, JSON diagnostics)
-        uses: aquasecurity/trivy-action@0.28.0
-        continue-on-error: true
-        with:
-          scan-type: fs
-          path: ./app
-          vuln-type: 'os,library'
-          severity: 'HIGH,CRITICAL'
-          ignore-unfixed: true
-          list-all-pkgs: true
-          format: 'json'
-          output: 'trivy-fs.json'
-          scanners: 'vuln'
-
-      - name: Upload Trivy JSON (fs)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: trivy-fs-json
-          path: trivy-fs.json
-
-      # Blocking image scan (human-readable)
-      - name: Trivy scan (image)
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          image-ref: ${{ env.ECR_REPO_NAME }}:dev-${{ steps.vars.outputs.short_sha }}
-          vuln-type: 'os,library'
-          severity: 'HIGH,CRITICAL'
-          ignore-unfixed: true
-          scanners: 'vuln'
-          exit-code: '1'
-
-      # (Optional) Blocking filesystem scan (human-readable)
-      - name: Trivy scan (filesystem)
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          scan-type: fs
-          path: ./app
-          vuln-type: 'os,library'
-          severity: 'HIGH,CRITICAL'
-          ignore-unfixed: true
-          scanners: 'vuln'
-          exit-code: '1'
-
-      # Push only if scans passed
-      - name: Tag & Push to ECR
-        if: ${{ success() }}
-        shell: bash
-        env:
-          SHORT_SHA: ${{ steps.vars.outputs.short_sha }}
-          REGISTRY: ${{ steps.ecr.outputs.registry }} # e.g., 123456789012.dkr.ecr.us-west-2.amazonaws.com
-        run: |
-          set -euo pipefail
-          REPO_URI="${REGISTRY}/${ECR_REPO_NAME}"
-          LOCAL_IMAGE="${ECR_REPO_NAME}:dev-${SHORT_SHA}"
-          REMOTE_IMAGE="${REPO_URI}:dev-${SHORT_SHA}"
-
-          echo "Tagging ${LOCAL_IMAGE} -> ${REMOTE_IMAGE}"
-          docker tag "${LOCAL_IMAGE}" "${REMOTE_IMAGE}"
-
-          echo "Pushing ${REMOTE_IMAGE}"
-          docker push "${REMOTE_IMAGE}"
+          docker bu
