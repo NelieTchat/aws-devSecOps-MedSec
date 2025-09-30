@@ -11,5 +11,8 @@
     "express-rate-limit": "^7.1.5",
     "helmet": "^7.1.0",
     "morgan": "^1.10.0"
+  },
+  "overrides": {
+    "cross-spawn": "^7.0.5"
   }
 }
