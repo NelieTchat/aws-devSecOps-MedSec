@@ -35,40 +35,40 @@ jobs:
         shell: bash
         run: docker build --no-cache -t ${{ env.ECR_REPO_NAME }}:dev-${{ steps.vars.outputs.short_sha }} ./app
 
+      # ---- Trivy via CLI (avoids action's input mixing) ----
+      - name: Install Trivy CLI
+        uses: aquasecurity/setup-trivy@v0.2.1
+
       - name: Cache Trivy DB
         uses: actions/cache@v4
         with:
           path: ~/.cache/trivy
-          key: trivy-${{ runner.os }}-${{ github.ref_name }}
+          key: trivy-db-${{ runner.os }}-${{ github.ref_name }}
           restore-keys: |
-            trivy-${{ runner.os }}-
+            trivy-db-${{ runner.os }}-
 
-      # Filesystem scan (your source tree)
-      - name: Trivy scan (filesystem)
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          scan-type: fs
-          input: ./app
-          scanners: 'vuln'
-          vuln-type: 'os,library'
-          severity: 'HIGH,CRITICAL'
-          ignore-unfixed: true
-          trivyignores: ./app/.trivyignore   # optional if you use .trivyignore
-          exit-code: '1'
+      - name: Trivy scan (image via CLI)
+        shell: bash
+        env:
+          IMAGE_REF: ${{ env.ECR_REPO_NAME }}:dev-${{ steps.vars.outputs.short_sha }}
+        run: |
+          set -euo pipefail
+          IGNORE_ARG=()
+          if [ -f ./app/.trivyignore ]; then
+            echo "Using ignorefile ./app/.trivyignore"
+            IGNORE_ARG=(--ignorefile ./app/.trivyignore)
+          fi
 
-      # Image scan (the built Docker image)
-      - name: Trivy scan (image)
-        uses: aquasecurity/trivy-action@0.28.0
-        with:
-          scan-type: image
-          image-ref: ${{ env.ECR_REPO_NAME }}:dev-${{ steps.vars.outputs.short_sha }}
-          scanners: 'vuln'
-          vuln-type: 'os,library'
-          severity: 'HIGH,CRITICAL'
-          ignore-unfixed: true
-          trivyignores: ./app/.trivyignore   # optional if you use .trivyignore
-          exit-code: '1'
+          echo "Scanning image: ${IMAGE_REF}"
+          trivy image \
+            --scanners vuln \
+            --vuln-type os,library \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            "${IGNORE_ARG[@]}" \
+            "${IMAGE_REF}"
 
+      # ---- Push only if scan passed ----
       - name: Tag & Push to ECR
         if: ${{ success() }}
         shell: bash
@@ -80,6 +80,5 @@ jobs:
           REPO_URI="${REGISTRY}/${ECR_REPO_NAME}"
           LOCAL_IMAGE="${ECR_REPO_NAME}:dev-${SHORT_SHA}"
           REMOTE_IMAGE="${REPO_URI}:dev-${SHORT_SHA}"
-
           docker tag "${LOCAL_IMAGE}" "${REMOTE_IMAGE}"
           docker push "${REMOTE_IMAGE}"
