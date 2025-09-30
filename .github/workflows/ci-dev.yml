@@ -9,6 +9,7 @@ jobs:
     permissions:
       id-token: write
       contents: read
+
     env:
       AWS_REGION: us-west-2
       ECR_REPO_NAME: medsec-portal-dev
@@ -61,4 +62,81 @@ jobs:
             --vuln-type os,library \
             --severity HIGH,CRITICAL \
             --ignore-unfixed \
-            --list-all-pkg
+            --format json \
+            --output trivy-fs.json \
+            "${IGNORE_ARG[@]}" \
+            ./app
+
+      - name: Upload Trivy JSON (fs)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-fs-json
+          path: trivy-fs.json
+          retention-days: 7
+
+      # Blocking image scan (HIGH/CRITICAL gate)
+      - name: Trivy scan (image via CLI)
+        shell: bash
+        env:
+          IMAGE_REF: ${{ env.ECR_REPO_NAME }}:dev-${{ steps.vars.outputs.short_sha }}
+        run: |
+          set -euo pipefail
+          IGNORE_ARG=()
+          if [ -f ./app/.trivyignore ]; then
+            echo "Using ignorefile ./app/.trivyignore"
+            IGNORE_ARG=(--ignorefile ./app/.trivyignore)
+          fi
+          echo "Scanning image: ${IMAGE_REF}"
+          trivy image \
+            --scanners vuln \
+            --vuln-type os,library \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            "${IGNORE_ARG[@]}" \
+            "${IMAGE_REF}"
+
+      # Image JSON report (always upload)
+      - name: Trivy scan (image via CLI, JSON report)
+        if: always()
+        shell: bash
+        env:
+          IMAGE_REF: ${{ env.ECR_REPO_NAME }}:dev-${{ steps.vars.outputs.short_sha }}
+        run: |
+          set +e
+          IGNORE_ARG=()
+          if [ -f ./app/.trivyignore ]; then
+            IGNORE_ARG=(--ignorefile ./app/.trivyignore)
+          fi
+          trivy image \
+            --scanners vuln \
+            --vuln-type os,library \
+            --severity HIGH,CRITICAL \
+            --ignore-unfixed \
+            --format json \
+            --output trivy-image.json \
+            "${IGNORE_ARG[@]}" \
+            "${IMAGE_REF}" || true
+
+      - name: Upload Trivy JSON (image)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: trivy-image-json
+          path: trivy-image.json
+          retention-days: 7
+
+      # Push only if the blocking image scan passed
+      - name: Tag & Push to ECR
+        if: ${{ success() }}
+        shell: bash
+        env:
+          SHORT_SHA: ${{ steps.vars.outputs.short_sha }}
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
+        run: |
+          set -euo pipefail
+          REPO_URI="${REGISTRY}/${ECR_REPO_NAME}"
+          LOCAL_IMAGE="${ECR_REPO_NAME}:dev-${SHORT_SHA}"
+          REMOTE_IMAGE="${REPO_URI}:dev-${SHORT_SHA}"
+          docker tag "${LOCAL_IMAGE}" "${REMOTE_IMAGE}"
+          docker push "${REMOTE_IMAGE}"
