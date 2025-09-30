@@ -9,10 +9,8 @@ jobs:
     permissions:
       id-token: write
       contents: read
-
     env:
       AWS_REGION: us-west-2
-      # ECR repository NAME only (no registry/account prefix)
       ECR_REPO_NAME: medsec-portal-dev
 
     steps:
@@ -33,8 +31,49 @@ jobs:
         shell: bash
         run: echo "short_sha=$(echo "$GITHUB_SHA" | cut -c1-7)" >> "$GITHUB_OUTPUT"
 
-      # Build Docker image from ./app (use --no-cache to avoid stale layers)
       - name: Build Docker image
         shell: bash
+        run: docker build --no-cache -t ${{ env.ECR_REPO_NAME }}:dev-${{ steps.vars.outputs.short_sha }} ./app
+
+      - name: Cache Trivy DB
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/trivy
+          key: trivy-${{ runner.os }}-${{ github.ref_name }}
+          restore-keys: |
+            trivy-${{ runner.os }}-
+
+      - name: Trivy scan (filesystem)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: fs
+          path: ./app
+          scanners: 'vuln'
+          vuln-type: 'os,library'
+          severity: 'HIGH,CRITICAL'
+          ignore-unfixed: true
+          exit-code: '1'
+
+      - name: Trivy scan (image)
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          image-ref: ${{ env.ECR_REPO_NAME }}:dev-${{ steps.vars.outputs.short_sha }}
+          scanners: 'vuln'
+          vuln-type: 'os,library'
+          severity: 'HIGH,CRITICAL'
+          ignore-unfixed: true
+          exit-code: '1'
+
+      - name: Tag & Push to ECR
+        if: ${{ success() }}
+        shell: bash
+        env:
+          SHORT_SHA: ${{ steps.vars.outputs.short_sha }}
+          REGISTRY: ${{ steps.ecr.outputs.registry }}
         run: |
-          run: docker build --no-cache -t ${{ env.ECR_REPO_NAME }}:dev-${{ steps.vars.outputs.short_sha }} ./app
+          set -euo pipefail
+          REPO_URI="${REGISTRY}/${ECR_REPO_NAME}"
+          LOCAL_IMAGE="${ECR_REPO_NAME}:dev-${SHORT_SHA}"
+          REMOTE_IMAGE="${REPO_URI}:dev-${SHORT_SHA}"
+          docker tag "${LOCAL_IMAGE}" "${REMOTE_IMAGE}"
+          docker push "${REMOTE_IMAGE}"
