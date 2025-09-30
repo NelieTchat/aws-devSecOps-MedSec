@@ -36,7 +36,7 @@ jobs:
         shell: bash
         run: docker build --no-cache -t ${{ env.ECR_REPO_NAME }}:dev-${{ steps.vars.outputs.short_sha }} ./app
 
-      # ---- Trivy via CLI (avoids action input mixing) ----
+      # ---- Trivy via CLI ----
       - name: Install Trivy CLI
         uses: aquasecurity/setup-trivy@v0.2.1
 
@@ -48,7 +48,7 @@ jobs:
           restore-keys: |
             trivy-db-${{ runner.os }}-
 
-      # Optional: Filesystem JSON report (non-blocking)
+      # Filesystem scan (JSON report, non-blocking)
       - name: Trivy scan (filesystem via CLI, JSON report)
         shell: bash
         run: |
@@ -75,7 +75,7 @@ jobs:
           path: trivy-fs.json
           retention-days: 7
 
-      # Blocking image scan (HIGH/CRITICAL gate)
+      # Blocking image scan
       - name: Trivy scan (image via CLI)
         shell: bash
         env:
@@ -96,7 +96,7 @@ jobs:
             "${IGNORE_ARG[@]}" \
             "${IMAGE_REF}"
 
-      # Image JSON report (always upload)
+      # Image JSON report (non-blocking)
       - name: Trivy scan (image via CLI, JSON report)
         if: always()
         shell: bash
@@ -126,7 +126,40 @@ jobs:
           path: trivy-image.json
           retention-days: 7
 
-      # Push only if the blocking image scan passed
+      # ---- Summary in GitHub Actions run ----
+      - name: Trivy summary (Markdown)
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          {
+            echo "# 🔒 Security scan summary"
+            echo
+            for report in trivy-image.json trivy-fs.json; do
+              if [[ -f "$report" ]]; then
+                TITLE="${report%.*}" # "trivy-image" / "trivy-fs"
+                HIGH=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="HIGH")] | length' "$report")
+                CRIT=$(jq '[.Results[]?.Vulnerabilities[]? | select(.Severity=="CRITICAL")] | length' "$report")
+                echo "## ${TITLE} report"
+                echo "- **HIGH:** ${HIGH}    •    **CRITICAL:** ${CRIT}"
+                echo
+                echo "| Target | Package | Version | Severity | CVE | Fixed |"
+                echo "|---|---|---|---|---|---|"
+                jq -r '
+                  .Results[]?.Vulnerabilities[]? 
+                  | [.Target, .PkgName, .InstalledVersion, .Severity, .VulnerabilityID, (.FixedVersion // "n/a")] 
+                  | @tsv
+                ' "$report" \
+                | head -n 10 \
+                | while IFS=$'\t' read -r t p v s c f; do
+                    echo "| ${t} | ${p} | ${v} | ${s} | ${c} | ${f} |"
+                  done
+                echo
+              fi
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      # Push only if blocking scan passed
       - name: Tag & Push to ECR
         if: ${{ success() }}
         shell: bash
