@@ -1,0 +1,12 @@
+- name: Ensure .env file is present
+  template:
+    src: ".env.j2"
+    dest: "{{ playbook_dir }}/../app/.env"
+    mode: '0600'
+
+- name: Show .env content (debug only, not for prod)
+  command: cat "{{ playbook_dir }}/../app/.env"
+  register: env_file
+
+- debug:
+    var: env_file.stdout

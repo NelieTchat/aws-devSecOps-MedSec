@@ -1,0 +1,8 @@
+- name: Configure MedSec portal (dev)
+  hosts: all
+  vars:
+    env: dev
+    jwt_secret: "supersecretdevtoken"
+    build_tag: "{{ lookup('pipe', 'git rev-parse --short HEAD') }}"
+  roles:
+    - portal
