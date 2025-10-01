@@ -1,6 +1,6 @@
 resource "aws_cloudwatch_log_group" "app" {
   name              = "/ecs/${var.name}"
-  retention_in_days = 14
+  retention_in_days = 7
   tags              = merge(var.tags, { Name = "/ecs/${var.name}" })
 }
 
@@ -28,8 +28,8 @@ resource "aws_ecs_task_definition" "task" {
 
   container_definitions = jsonencode([
     merge({
-      name  = var.container_name
-      image = var.container_image
+      name      = var.container_name
+      image     = var.container_image
       essential = true
 
       portMappings = [{

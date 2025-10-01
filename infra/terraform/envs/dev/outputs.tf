@@ -37,3 +37,4 @@ output "ci_role_arn" {
   value       = module.iam_ci.role_arn
   description = "GitHub Actions OIDC CI role ARN."
 }
+

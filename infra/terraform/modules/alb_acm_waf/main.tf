@@ -1,7 +1,7 @@
 resource "aws_security_group" "alb_sg" {
   name        = "${var.name}-alb-sg"
   vpc_id      = var.vpc_id
-  description = "Public ALB SG"
+  description = "Public ALB security group"
 
   ingress {
     from_port   = 80
@@ -38,7 +38,6 @@ resource "aws_lb" "alb" {
   tags = merge(var.tags, { Name = "${var.name}-alb" })
 }
 
-# Target Group for ECS (HTTP on 8080)
 resource "aws_lb_target_group" "tg" {
   name        = "${var.name}-tg"
   vpc_id      = var.vpc_id
@@ -48,25 +47,24 @@ resource "aws_lb_target_group" "tg" {
 
   health_check {
     path                = "/health"
+    matcher             = "200"
     healthy_threshold   = 2
     unhealthy_threshold = 2
     interval            = 30
     timeout             = 5
-    matcher             = "200"
   }
 
   tags = merge(var.tags, { Name = "${var.name}-tg" })
 }
 
-# Listener(s)
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.alb.arn
   port              = 80
   protocol          = "HTTP"
 
-  # If HTTPS is enabled and cert provided, redirect HTTP->HTTPS
+  # When HTTPS is enabled, redirect HTTP -> HTTPS
   dynamic "default_action" {
-    for_each = var.https && var.certificate_arn != "" ? [1] : []
+    for_each = var.https ? [1] : []
     content {
       type = "redirect"
       redirect {
@@ -77,9 +75,9 @@ resource "aws_lb_listener" "http" {
     }
   }
 
-  # Otherwise, forward HTTP directly to the target group
+  # Otherwise, forward HTTP to target group
   dynamic "default_action" {
-    for_each = var.https && var.certificate_arn != "" ? [] : [1]
+    for_each = var.https ? [] : [1]
     content {
       type             = "forward"
       target_group_arn = aws_lb_target_group.tg.arn
@@ -88,7 +86,8 @@ resource "aws_lb_listener" "http" {
 }
 
 resource "aws_lb_listener" "https" {
-  count             = var.https && var.certificate_arn != "" ? 1 : 0
+  # Count depends only on var.https so plan is stable
+  count             = var.https ? 1 : 0
   load_balancer_arn = aws_lb.alb.arn
   port              = 443
   protocol          = "HTTPS"
@@ -101,7 +100,6 @@ resource "aws_lb_listener" "https" {
   }
 }
 
-# Optional: WAFv2 (regional)
 resource "aws_wafv2_web_acl" "waf" {
   count = var.waf_enabled ? 1 : 0
   name  = "${var.name}-waf"
@@ -128,14 +126,14 @@ resource "aws_wafv2_web_acl" "waf" {
       }
     }
 
+    override_action {
+      none {}
+    }
+
     visibility_config {
       cloudwatch_metrics_enabled = true
       metric_name                = "Common"
       sampled_requests_enabled   = true
-    }
-
-    override_action {
-      none {}
     }
   }
 

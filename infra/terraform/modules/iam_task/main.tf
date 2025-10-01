@@ -33,8 +33,8 @@ resource "aws_iam_role_policy_attachment" "exec_ecr_logs" {
 data "aws_iam_policy_document" "secrets_read" {
   count = var.allow_secretsmanager ? 1 : 0
   statement {
-    effect  = "Allow"
-    actions = ["secretsmanager:GetSecretValue"]
+    effect    = "Allow"
+    actions   = ["secretsmanager:GetSecretValue"]
     resources = ["*"]
   }
 }

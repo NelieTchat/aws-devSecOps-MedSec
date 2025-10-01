@@ -39,11 +39,11 @@ resource "aws_internet_gateway" "igw" {
 
 # ------------- Public Subnets -------------
 resource "aws_subnet" "public_subnets" {
-  for_each                  = var.enable_public_subnets ? toset(local.azs) : []
-  vpc_id                    = aws_vpc.main.id
-  availability_zone         = each.value
-  cidr_block                = cidrsubnet(var.cidr_block, var.public_subnet_newbits, 200 + index(local.azs, each.value))
-  map_public_ip_on_launch   = true
+  for_each                = var.enable_public_subnets ? toset(local.azs) : []
+  vpc_id                  = aws_vpc.main.id
+  availability_zone       = each.value
+  cidr_block              = cidrsubnet(var.cidr_block, var.public_subnet_newbits, 200 + index(local.azs, each.value))
+  map_public_ip_on_launch = true
   tags = merge(var.tags, {
     Name = "${var.name}-public-${each.value}"
     Tier = "public"
@@ -52,9 +52,9 @@ resource "aws_subnet" "public_subnets" {
 
 # One public route table, 0.0.0.0/0 via IGW
 resource "aws_route_table" "public_rt" {
-  count = var.enable_public_subnets ? 1 : 0
+  count  = var.enable_public_subnets ? 1 : 0
   vpc_id = aws_vpc.main.id
-  tags = merge(var.tags, { Name = "${var.name}-public-rt" })
+  tags   = merge(var.tags, { Name = "${var.name}-public-rt" })
 }
 
 resource "aws_route" "public_igw" {
@@ -102,63 +102,64 @@ resource "aws_route_table_association" "private_assoc" {
   route_table_id = aws_route_table.private_rts[each.key].id
 }
 
-# ------------- VPC Endpoints (optional) -------------
+# # ------------- VPC Endpoints (optional) -------------
 
-# S3 Gateway endpoint (for ECR layer pulls)
-resource "aws_vpc_endpoint" "s3_gateway" {
-  count             = var.enable_endpoints ? 1 : 0
-  vpc_id            = aws_vpc.main.id
-  service_name      = "com.amazonaws.${data.aws_region.current.name}.s3"
-  vpc_endpoint_type = "Gateway"
+# # S3 Gateway endpoint (for ECR layer pulls)
+# # Resolve service names instead of concatenating with the region
+# data "aws_vpc_endpoint_service" "s3" {
+#   service_type = "Gateway"
+#   service      = "s3"
+# }
 
-  tags = merge(var.tags, {
-    Name = "${var.name}-s3-endpoint"
-  })
-}
+# data "aws_vpc_endpoint_service" "dynamodb" {
+#   service_type = "Gateway"
+#   service      = "dynamodb"
+# }
 
-resource "aws_vpc_endpoint_route_table_association" "s3_assoc" {
-  for_each        = var.enable_endpoints ? aws_route_table.private_rts : {}
-  vpc_endpoint_id = aws_vpc_endpoint.s3_gateway[0].id
-  route_table_id  = each.value.id
-}
+# resource "aws_vpc_endpoint" "s3_gateway" {
+#   vpc_id            = aws_vpc.vpc.id
+#   service_name      = data.aws_vpc_endpoint_service.s3.service_name
+#   vpc_endpoint_type = "Gateway"
+#   route_table_ids   = aws_route_table.private[*].id
+#   tags              = merge(var.tags, { Name = "${var.name}-vpce-s3" })
+# }
 
-# SG for Interface Endpoints
-resource "aws_security_group" "vpce_sg" {
-  count       = var.enable_endpoints ? 1 : 0
-  name        = "${var.name}-vpce-sg"
-  description = "Security group for VPC Interface Endpoints"
-  vpc_id      = aws_vpc.main.id
+# resource "aws_vpc_endpoint" "dynamodb_gateway" {
+#   vpc_id            = aws_vpc.vpc.id
+#   service_name      = data.aws_vpc_endpoint_service.dynamodb.service_name
+#   vpc_endpoint_type = "Gateway"
+#   route_table_ids   = aws_route_table.private[*].id
+#   tags              = merge(var.tags, { Name = "${var.name}-vpce-dynamodb" })
+# }
 
-  ingress {
-    from_port   = 443
-    to_port     = 443
-    protocol    = "tcp"
-    cidr_blocks = [aws_vpc.main.cidr_block]
-  }
+# resource "aws_vpc_endpoint_route_table_association" "s3_assoc" {
+#   for_each        = var.enable_endpoints ? aws_route_table.private_rts : {}
+#   vpc_endpoint_id = aws_vpc_endpoint.s3_gateway[0].id
+#   route_table_id  = each.value.id
+# }
 
-  egress {
-    from_port   = 0
-    to_port     = 0
-    protocol    = "-1"
-    cidr_blocks = [aws_vpc.main.cidr_block]
-  }
+# # SG for Interface Endpoints
+# resource "aws_security_group" "vpce_sg" {
+#   count       = var.enable_endpoints ? 1 : 0
+#   name        = "${var.name}-vpce-sg"
+#   description = "Security group for VPC Interface Endpoints"
+#   vpc_id      = aws_vpc.main.id
 
-  tags = merge(var.tags, {
-    Name = "${var.name}-vpce-sg"
-  })
-}
+#   ingress {
+#     from_port   = 443
+#     to_port     = 443
+#     protocol    = "tcp"
+#     cidr_blocks = [aws_vpc.main.cidr_block]
+#   }
 
-# Interface endpoints (private HTTPS to AWS APIs)
-resource "aws_vpc_endpoint" "interface_endpoints" {
-  for_each            = var.enable_endpoints ? toset(local.interface_services) : []
-  vpc_id              = aws_vpc.main.id
-  service_name        = "com.amazonaws.${data.aws_region.current.name}.${each.value}"
-  vpc_endpoint_type   = "Interface"
-  subnet_ids          = [for s in aws_subnet.private_subnets : s.id]
-  security_group_ids  = [aws_security_group.vpce_sg[0].id]
-  private_dns_enabled = true
+#   egress {
+#     from_port   = 0
+#     to_port     = 0
+#     protocol    = "-1"
+#     cidr_blocks = [aws_vpc.main.cidr_block]
+#   }
 
-  tags = merge(var.tags, {
-    Name = "${var.name}-${each.value}-ep"
-  })
-}
+#   tags = merge(var.tags, {
+#     Name = "${var.name}-vpce-sg"
+#   })
+# }

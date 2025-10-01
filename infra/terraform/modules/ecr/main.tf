@@ -5,7 +5,7 @@ resource "aws_ecr_repository" "repo" {
   image_scanning_configuration {
     scan_on_push = var.scan_on_push
   }
- 
+
   encryption_configuration {
     encryption_type = "KMS" # AWS-managed KMS
   }
@@ -20,15 +20,15 @@ resource "aws_ecr_repository" "repo" {
 
 resource "aws_ecr_lifecycle_policy" "cleanup" {
   repository = aws_ecr_repository.repo.name
-  policy     = jsonencode({
+  policy = jsonencode({
     rules = [{
       rulePriority = 1,
       description  = "Expire untagged images after 7 days",
-      selection    = {
-        tagStatus     = "untagged"
-        countType     = "sinceImagePushed"
-        countUnit     = "days"
-        countNumber   = 7
+      selection = {
+        tagStatus   = "untagged"
+        countType   = "sinceImagePushed"
+        countUnit   = "days"
+        countNumber = 7
       }
       action = { type = "expire" }
     }]

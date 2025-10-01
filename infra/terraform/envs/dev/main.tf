@@ -43,17 +43,19 @@ module "iam_task" {
 }
 
 ########################################
-# Public ALB (HTTP now; HTTPS later)
+# Public ALB (HTTP + HTTPS w/ cert)
 ########################################
 module "alb" {
-  source          = "../../modules/alb_acm_waf"
-  name            = "medsec-dev"
-  vpc_id          = module.network.vpc_id
-  subnet_ids      = module.network.public_subnet_ids
-  https           = false # flip to true when you add a cert
-  certificate_arn = ""    # ACM ARN when ready
-  waf_enabled     = false
-  tags            = local.common_tags
+  source     = "../../modules/alb_acm_waf"
+  name       = "medsec-dev"
+  vpc_id     = module.network.vpc_id
+  subnet_ids = module.network.public_subnet_ids
+
+  https           = false
+  certificate_arn = ""
+
+  waf_enabled = false
+  tags        = local.common_tags
 }
 
 ########################################
@@ -103,12 +105,14 @@ module "ecs_service" {
   memory        = 512
   desired_count = 1
 
-  # ALB binding
   target_group_arn = module.alb.tg_arn
 
   tags = local.common_tags
 }
 
+########################################
+# GitHub OIDC CI Role
+########################################
 module "iam_ci" {
   source = "../../modules/iam-gh-oidc"
   name   = "medsec-dev-ci"
@@ -116,3 +120,4 @@ module "iam_ci" {
   branch = "dev"
   tags   = local.common_tags
 }
+

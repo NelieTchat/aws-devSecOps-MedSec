@@ -1,38 +1,38 @@
 variable "name" {
   type        = string
-  description = "Name prefix for ALB resources"
+  description = "Prefix for ALB-related resources (e.g., medsec-dev)."
 }
 
 variable "vpc_id" {
   type        = string
-  description = "VPC ID where ALB will be created"
+  description = "VPC ID where the ALB and target group live."
 }
 
 variable "subnet_ids" {
   type        = list(string)
-  description = "List of public subnet IDs for ALB"
+  description = "Public subnet IDs for the ALB."
 }
 
 variable "https" {
   type        = bool
   default     = false
-  description = "Enable HTTPS listener"
+  description = "Enable HTTPS listener and HTTP→HTTPS redirect."
 }
 
 variable "certificate_arn" {
   type        = string
   default     = ""
-  description = "ACM certificate ARN (required if https = true)"
+  description = "ACM certificate ARN (same region as the ALB)."
 }
 
 variable "waf_enabled" {
   type        = bool
   default     = false
-  description = "Enable WAF and associate with the ALB"
+  description = "Attach a regional WAF with AWS managed rules."
 }
 
 variable "tags" {
   type        = map(string)
   default     = {}
-  description = "Additional tags to apply"
+  description = "Tags to apply to ALB resources."
 }

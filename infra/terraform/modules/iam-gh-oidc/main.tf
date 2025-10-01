@@ -2,7 +2,7 @@ resource "aws_iam_openid_connect_provider" "github" {
   url             = "https://token.actions.githubusercontent.com"
   client_id_list  = ["sts.amazonaws.com"]
   thumbprint_list = ["6938fd4d98bab03faadb97b34396831e3780aea1"]
-  tags = merge(var.tags, { Name = "${var.name}-gh-oidc" })
+  tags            = merge(var.tags, { Name = "${var.name}-gh-oidc" })
 }
 
 data "aws_iam_policy_document" "assume" {
@@ -34,7 +34,7 @@ resource "aws_iam_role" "ci" {
 
 data "aws_iam_policy_document" "ecr_push" {
   statement {
-    effect  = "Allow"
+    effect = "Allow"
     actions = [
       "ecr:GetAuthorizationToken",
       "ecr:BatchCheckLayerAvailability",
