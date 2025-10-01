@@ -51,4 +51,6 @@ __pycache__/
 *.crt
 *.csr
 .env
+*.env
+
 secrets.yaml
