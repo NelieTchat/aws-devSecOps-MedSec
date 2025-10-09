@@ -1,7 +1,8 @@
 name: ci-dev
 on:
   push:
-    branches: ["dev"]
+    branches-ignore:
+      - "dev"
 
 jobs:
   build-and-push:
@@ -38,15 +39,22 @@ jobs:
 
       # ---- Trivy via CLI ----
       - name: Install Trivy CLI
+        id: trivy
         uses: aquasecurity/setup-trivy@v0.2.1
+        with:
+          version: v0.56.1   # pin version (update here when upgrading)
 
       - name: Cache Trivy DB
         uses: actions/cache@v4
         with:
           path: ~/.cache/trivy
-          key: trivy-db-${{ runner.os }}-${{ github.ref_name }}
+          key: trivy-db-${{ runner.os }}-${{ steps.trivy.outputs.version }}-${{ github.ref_name }}
           restore-keys: |
-            trivy-db-${{ runner.os }}-
+            trivy-db-${{ runner.os }}-${{ steps.trivy.outputs.version }}-
+
+      # Ensure jq for summary
+      - name: Ensure jq
+        run: sudo apt-get update && sudo apt-get install -y jq
 
       # Filesystem scan (JSON report, non-blocking)
       - name: Trivy scan (filesystem via CLI, JSON report)

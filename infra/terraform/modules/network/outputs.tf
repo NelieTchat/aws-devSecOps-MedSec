@@ -9,11 +9,16 @@ output "private_subnet_ids" {
 }
 
 output "public_subnet_ids" {
-  value       = try([for s in aws_subnet.public_subnets : s.id], [])
+  value       = [for s in aws_subnet.public_subnets : s.id]
   description = "Public subnet IDs (if enabled)."
 }
 
+output "private_route_table_ids" {
+  value       = [for rt in aws_route_table.private_rts : rt.id]
+  description = "Private route table IDs."
+}
+
 output "azs" {
-  value       = [for s in aws_subnet.private_subnets : s.availability_zone]
+  value       = local.azs
   description = "AZs used for subnets."
 }

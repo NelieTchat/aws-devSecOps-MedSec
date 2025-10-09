@@ -3,6 +3,12 @@ variable "name" {
   description = "Service and task family name."
 }
 
+variable "assign_public_ip" {
+  type        = bool
+  default     = false
+  description = "If true, tasks receive a public IP (useful for dev without NAT/VPC endpoints)."
+}
+
 variable "cluster_arn" {
   type        = string
   description = "ECS cluster ARN."

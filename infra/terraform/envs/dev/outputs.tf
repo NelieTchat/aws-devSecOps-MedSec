@@ -14,7 +14,7 @@ output "public_subnet_ids" {
 }
 
 output "alb_dns" {
-  value       = module.alb.alb_dns
+  value       = module.alb.alb_dns_name
   description = "Public DNS of the ALB"
 }
 

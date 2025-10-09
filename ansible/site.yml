@@ -1,8 +1,11 @@
 - name: Configure MedSec portal (dev)
   hosts: all
   vars:
-    env: dev
+    app_env: dev
+    app_port: 8080
     jwt_secret: "supersecretdevtoken"
     build_tag: "{{ lookup('pipe', 'git rev-parse --short HEAD') }}"
+    api_url: "https://api.medsec.local"
+    db_url: "postgres://dev:password@localhost:5432/medsec"
   roles:
     - portal

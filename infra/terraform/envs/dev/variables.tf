@@ -1,3 +1,9 @@
+variable "aws_region" {
+  type        = string
+  default     = "us-west-2"
+  description = "AWS region for this environment"
+}
+
 variable "vpc_cidr" {
   type        = string
   default     = "10.0.0.0/16"
@@ -12,6 +18,6 @@ variable "az_count" {
 
 variable "image_tag" {
   type        = string
-  description = "ECR image tag to deploy (e.g., dev-50ffcd9)."
-
+  default     = "dev-local" # or leave unset and pass with -var
+  description = "ECR image tag to deploy (e.g., dev-86df4ca)"
 }

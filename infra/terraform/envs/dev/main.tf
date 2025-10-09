@@ -1,21 +1,47 @@
-########################################
-# Network (private + public for ALB)
-########################################
-module "network" {
-  source                = "../../modules/network"
-  name                  = "medsec-dev"
+module "network" { 
+  source = "../../modules/network"
+  name   = "medsec-dev"
   cidr_block            = var.vpc_cidr
   az_count              = var.az_count
-  subnet_newbits        = 8
-  enable_endpoints      = true
   enable_public_subnets = true
+  subnet_newbits        = 8
   public_subnet_newbits = 8
   tags                  = local.common_tags
 }
 
 ########################################
-# ECR (dev repo; force delete enabled)
+# ECS Service (Fargate behind the ALB)
 ########################################
+module "ecs_service" {
+  source             = "../../modules/ecs_service"
+  name               = "medsec-dev-portal"
+  cluster_arn        = module.ecs_cluster.cluster_arn
+  # Use PRIVATE subnets normally; you set public subnets earlier—either works for now.
+  subnet_ids         = module.network.public_subnet_ids
+  security_group_ids = [aws_security_group.svc_sg.id]
+
+  container_image = format("%s:%s", module.ecr_portal.repository_url, var.image_tag)
+  container_name  = "medsec-dev-portal"
+  container_port  = 8080
+
+  task_role_arn = module.iam_task.task_role_arn
+  exec_role_arn = module.iam_task.exec_role_arn
+
+  cpu           = 256
+  memory        = 512
+
+  # Keep 1 running so ALB has healthy targets
+  desired_count = 1
+
+  # Wire the ALB target group
+  target_group_arn = module.alb.tg_arn
+
+  # If your ecs_service module supports this flag and you're on public subnets:
+  assign_public_ip = true
+
+  tags = local.common_tags
+}
+
 module "ecr_portal" {
   source       = "../../modules/ecr"
   name         = "medsec-portal-dev"
@@ -23,18 +49,12 @@ module "ecr_portal" {
   tags         = local.common_tags
 }
 
-########################################
-# ECS Cluster
-########################################
 module "ecs_cluster" {
   source = "../../modules/ecs_cluster"
   name   = "medsec-dev-cluster"
   tags   = local.common_tags
 }
 
-########################################
-# IAM for Task / Execution roles
-########################################
 module "iam_task" {
   source               = "../../modules/iam_task"
   name                 = "medsec-dev"
@@ -42,9 +62,6 @@ module "iam_task" {
   tags                 = local.common_tags
 }
 
-########################################
-# Public ALB (HTTP + HTTPS w/ cert)
-########################################
 module "alb" {
   source     = "../../modules/alb_acm_waf"
   name       = "medsec-dev"
@@ -53,14 +70,11 @@ module "alb" {
 
   https           = false
   certificate_arn = ""
+  waf_enabled     = false
 
-  waf_enabled = false
-  tags        = local.common_tags
+  tags = local.common_tags
 }
 
-########################################
-# SG for ECS service (allow only from ALB)
-########################################
 resource "aws_security_group" "svc_sg" {
   name        = "medsec-dev-svc-sg"
   vpc_id      = module.network.vpc_id
@@ -84,35 +98,8 @@ resource "aws_security_group" "svc_sg" {
   tags = local.common_tags
 }
 
-########################################
-# ECS Service (wires to ALB TG)
-########################################
-module "ecs_service" {
-  source             = "../../modules/ecs_service"
-  name               = "medsec-dev-portal"
-  cluster_arn        = module.ecs_cluster.cluster_arn
-  subnet_ids         = module.network.private_subnet_ids
-  security_group_ids = [aws_security_group.svc_sg.id]
 
-  container_image = format("%s:%s", module.ecr_portal.repository_url, var.image_tag)
-  container_name  = "medsec-dev-portal"
-  container_port  = 8080
 
-  task_role_arn = module.iam_task.task_role_arn
-  exec_role_arn = module.iam_task.exec_role_arn
-
-  cpu           = 256
-  memory        = 512
-  desired_count = 1
-
-  target_group_arn = module.alb.tg_arn
-
-  tags = local.common_tags
-}
-
-########################################
-# GitHub OIDC CI Role
-########################################
 module "iam_ci" {
   source = "../../modules/iam-gh-oidc"
   name   = "medsec-dev-ci"
@@ -120,4 +107,3 @@ module "iam_ci" {
   branch = "dev"
   tags   = local.common_tags
 }
-

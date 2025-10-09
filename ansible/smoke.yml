@@ -1,0 +1,81 @@
+- name: Smoke test MedSec service via ALB
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  vars:
+    alb: ""   # pass like: -e "alb=http://<alb-dns>"
+
+  tasks:
+    - name: Assert alb var provided
+      ansible.builtin.assert:
+        that:
+          - alb is match("^http://")
+        fail_msg: "Pass ALB URL with -e 'alb=http://<alb-dns>'"
+
+    - name: GET /health (expect 200)
+      ansible.builtin.uri:
+        url: "{{ alb }}/health"
+        method: GET
+        status_code: 200
+        return_content: true
+        validate_certs: false
+      register: health
+
+    - name: Show /health body
+      ansible.builtin.debug:
+        var: health.json
+
+    - name: GET /ready (expect 200 & ready:true)
+      ansible.builtin.uri:
+        url: "{{ alb }}/ready"
+        method: GET
+        status_code: 200
+        return_content: true
+        validate_certs: false
+      register: ready
+
+    - name: Ensure ready==true
+      ansible.builtin.assert:
+        that:
+          - ready.json.ready | bool
+
+    - name: POST /login to get token
+      ansible.builtin.uri:
+        url: "{{ alb }}/login"
+        method: POST
+        headers:
+          Content-Type: application/json
+        body_format: json
+        body:
+          email: "demo@medsec.local"
+          password: "demo123"
+        status_code: 200
+        return_content: true
+        validate_certs: false
+      register: login
+
+    - name: Extract token
+      ansible.builtin.set_fact:
+        token: "{{ login.json.token | default('') }}"
+
+    - name: Check token present
+      ansible.builtin.assert:
+        that:
+          - token | length > 0
+        fail_msg: "No token returned from /login"
+
+    - name: GET /api/patients (authorized)
+      ansible.builtin.uri:
+        url: "{{ alb }}/api/patients"
+        method: GET
+        headers:
+          Authorization: "Bearer {{ token }}"
+        status_code: 200
+        return_content: true
+        validate_certs: false
+      register: patients
+
+    - name: Show patients
+      ansible.builtin.debug:
+        var: patients.json
