@@ -1,12 +1,4 @@
 # MedSec DevSecOps Project
-Great choice 🙌 — let’s make a **hybrid README**:
-
-* **Stakeholder-friendly** at the top (clear goals, architecture)
-* **Developer-focused** below (commands, setup, usage)
-
-Here’s a version you can paste into your `README.md`:
-
----
 
 # MedSec Project (DevSecOps Healthcare Portal)
 
