@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>MedSec — DevSecOps Healthcare Portal | Nelie Tchatchouang</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --navy: #0a1628;
+    --navy-mid: #0f2040;
+    --navy-soft: #162b52;
+    --teal: #00d4aa;
+    --teal-dim: #00a882;
+    --teal-glow: rgba(0,212,170,0.12);
+    --red: #ff4d6d;
+    --amber: #ffb347;
+    --blue: #4da6ff;
+    --text: #e8edf5;
+    --text-muted: #7a8fa8;
+    --text-dim: #4a5a6e;
+    --border: rgba(0,212,170,0.15);
+    --border-soft: rgba(255,255,255,0.06);
+    --mono: 'IBM Plex Mono', monospace;
+    --sans: 'IBM Plex Sans', sans-serif;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    background: var(--navy);
+    color: var(--text);
+    font-family: var(--sans);
+    font-weight: 300;
+    line-height: 1.7;
+    overflow-x: hidden;
+  }
+
+  /* Grid background */
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background-image:
+      linear-gradient(rgba(0,212,170,0.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,170,0.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .wrap { max-width: 860px; margin: 0 auto; padding: 0 2rem; position: relative; z-index: 1; }
+
+  /* NAV */
+  nav {
+    border-bottom: 1px solid var(--border-soft);
+    padding: 1.2rem 0;
+    position: sticky; top: 0;
+    background: rgba(10,22,40,0.92);
+    backdrop-filter: blur(12px);
+    z-index: 100;
+  }
+  .nav-inner { display: flex; justify-content: space-between; align-items: center; }
+  .nav-logo { font-family: var(--mono); font-size: 13px; color: var(--teal); letter-spacing: 0.05em; }
+  .nav-links { display: flex; gap: 2rem; }
+  .nav-links a { font-size: 13px; color: var(--text-muted); text-decoration: none; transition: color 0.2s; font-family: var(--mono); }
+  .nav-links a:hover { color: var(--teal); }
+
+  /* HERO */
+  .hero { padding: 5rem 0 3rem; }
+
+  .hero-tag {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--teal);
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .hero-tag::before {
+    content: '';
+    display: inline-block;
+    width: 24px; height: 1px;
+    background: var(--teal);
+  }
+
+  h1 {
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    font-weight: 600;
+    line-height: 1.15;
+    letter-spacing: -0.02em;
+    margin-bottom: 1.5rem;
+    color: #fff;
+  }
+  h1 span { color: var(--teal); }
+
+  .hero-desc {
+    font-size: 1.05rem;
+    color: var(--text-muted);
+    max-width: 600px;
+    margin-bottom: 2.5rem;
+    line-height: 1.8;
+  }
+
+  .hero-actions { display: flex; gap: 1rem; flex-wrap: wrap; }
+
+  .btn {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 0.7rem 1.4rem;
+    font-family: var(--mono);
+    font-size: 13px;
+    text-decoration: none;
+    border-radius: 4px;
+    transition: all 0.2s;
+    letter-spacing: 0.03em;
+  }
+  .btn-primary {
+    background: var(--teal);
+    color: var(--navy);
+    font-weight: 500;
+  }
+  .btn-primary:hover { background: #00f0c0; transform: translateY(-1px); }
+  .btn-ghost {
+    border: 1px solid var(--border);
+    color: var(--teal);
+    background: var(--teal-glow);
+  }
+  .btn-ghost:hover { border-color: var(--teal); background: rgba(0,212,170,0.18); }
+
+  /* STATUS BADGES */
+  .status-bar {
+    display: flex; gap: 1rem; flex-wrap: wrap;
+    padding: 1.5rem 0;
+    border-top: 1px solid var(--border-soft);
+    border-bottom: 1px solid var(--border-soft);
+    margin: 3rem 0;
+  }
+  .badge {
+    display: inline-flex; align-items: center; gap: 6px;
+    font-family: var(--mono); font-size: 11px;
+    padding: 4px 12px; border-radius: 2px;
+    letter-spacing: 0.05em;
+  }
+  .badge-green { background: rgba(0,212,170,0.1); color: var(--teal); border: 1px solid rgba(0,212,170,0.25); }
+  .badge-blue  { background: rgba(77,166,255,0.1); color: var(--blue); border: 1px solid rgba(77,166,255,0.25); }
+  .badge-amber { background: rgba(255,179,71,0.1); color: var(--amber); border: 1px solid rgba(255,179,71,0.25); }
+  .badge-red   { background: rgba(255,77,109,0.1); color: var(--red); border: 1px solid rgba(255,77,109,0.25); }
+  .dot { width: 6px; height: 6px; border-radius: 50%; }
+  .dot-green { background: var(--teal); }
+  .dot-blue  { background: var(--blue); }
+  .dot-amber { background: var(--amber); }
+
+  /* SECTIONS */
+  section { padding: 3rem 0; border-bottom: 1px solid var(--border-soft); }
+  section:last-child { border-bottom: none; }
+
+  .section-label {
+    font-family: var(--mono); font-size: 11px;
+    color: var(--teal); letter-spacing: 0.15em;
+    text-transform: uppercase; margin-bottom: 1.5rem;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .section-label::after {
+    content: ''; flex: 1; height: 1px;
+    background: var(--border);
+  }
+
+  h2 { font-size: 1.5rem; font-weight: 500; margin-bottom: 1rem; color: #fff; }
+  h3 { font-size: 1rem; font-weight: 500; color: var(--teal); margin-bottom: 0.5rem; font-family: var(--mono); }
+
+  p { color: var(--text-muted); margin-bottom: 1rem; }
+
+  /* ARCHITECTURE */
+  .arch-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 1px;
+    background: var(--border-soft);
+    border: 1px solid var(--border-soft);
+    border-radius: 6px;
+    overflow: hidden;
+    margin-top: 1.5rem;
+  }
+  .arch-cell {
+    background: var(--navy-mid);
+    padding: 1.25rem;
+    transition: background 0.2s;
+  }
+  .arch-cell:hover { background: var(--navy-soft); }
+  .arch-icon {
+    font-family: var(--mono); font-size: 20px;
+    margin-bottom: 0.75rem; display: block;
+    color: var(--teal);
+  }
+  .arch-cell h4 { font-size: 13px; font-weight: 500; color: #fff; margin-bottom: 4px; }
+  .arch-cell p { font-size: 12px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+  /* HIGHLIGHTS LIST */
+  .highlight-list { list-style: none; display: flex; flex-direction: column; gap: 0.75rem; margin-top: 1rem; }
+  .highlight-list li {
+    display: flex; gap: 12px; align-items: flex-start;
+    font-size: 14px; color: var(--text-muted); line-height: 1.6;
+  }
+  .highlight-list li::before {
+    content: '▸';
+    color: var(--teal); flex-shrink: 0;
+    margin-top: 1px; font-size: 12px;
+  }
+  .highlight-list li strong { color: var(--text); font-weight: 500; }
+
+  /* STACK */
+  .stack-grid { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 1rem; }
+  .stack-pill {
+    font-family: var(--mono); font-size: 12px;
+    padding: 5px 12px; border-radius: 2px;
+    background: rgba(255,255,255,0.04);
+    border: 1px solid var(--border-soft);
+    color: var(--text-muted);
+    transition: all 0.2s;
+  }
+  .stack-pill:hover { border-color: var(--teal); color: var(--teal); background: var(--teal-glow); }
+
+  /* CODE BLOCK */
+  .code-block {
+    background: rgba(0,0,0,0.4);
+    border: 1px solid var(--border-soft);
+    border-left: 3px solid var(--teal);
+    border-radius: 4px;
+    padding: 1.25rem 1.5rem;
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--text-muted);
+    overflow-x: auto;
+    margin-top: 1rem;
+    line-height: 1.8;
+  }
+  .code-block .kw { color: var(--teal); }
+  .code-block .str { color: var(--amber); }
+  .code-block .cmt { color: var(--text-dim); font-style: italic; }
+
+  /* SECURITY */
+  .security-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 12px; margin-top: 1rem;
+  }
+  .security-card {
+    background: var(--navy-mid);
+    border: 1px solid var(--border-soft);
+    border-radius: 6px; padding: 1rem;
+  }
+  .security-card.critical { border-color: rgba(0,212,170,0.3); }
+  .sec-title { font-size: 12px; font-weight: 500; color: #fff; margin-bottom: 6px; font-family: var(--mono); }
+  .sec-desc { font-size: 12px; color: var(--text-muted); line-height: 1.5; margin: 0; }
+
+  /* ROADMAP */
+  .roadmap { display: flex; flex-direction: column; gap: 0; margin-top: 1rem; }
+  .roadmap-item {
+    display: flex; gap: 1.5rem; align-items: flex-start;
+    padding: 1rem 0;
+    border-bottom: 1px solid var(--border-soft);
+  }
+  .roadmap-item:last-child { border-bottom: none; }
+  .roadmap-marker {
+    flex-shrink: 0; width: 28px; height: 28px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-family: var(--mono); font-size: 11px; font-weight: 500;
+  }
+  .done { background: rgba(0,212,170,0.15); color: var(--teal); border: 1px solid rgba(0,212,170,0.3); }
+  .in-progress { background: rgba(255,179,71,0.15); color: var(--amber); border: 1px solid rgba(255,179,71,0.3); }
+  .planned { background: rgba(255,255,255,0.04); color: var(--text-dim); border: 1px solid var(--border-soft); }
+  .roadmap-content h4 { font-size: 14px; font-weight: 500; color: #fff; margin-bottom: 2px; }
+  .roadmap-content p { font-size: 13px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+  /* FOOTER */
+  footer {
+    padding: 3rem 0;
+    border-top: 1px solid var(--border-soft);
+    margin-top: 2rem;
+  }
+  .footer-inner { display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem; }
+  .footer-name { font-family: var(--mono); font-size: 13px; color: var(--teal); }
+  .footer-links { display: flex; gap: 1.5rem; }
+  .footer-links a { font-size: 13px; color: var(--text-muted); text-decoration: none; font-family: var(--mono); transition: color 0.2s; }
+  .footer-links a:hover { color: var(--teal); }
+
+  /* ANIMATIONS */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  .hero > * { animation: fadeUp 0.6s ease both; }
+  .hero > *:nth-child(1) { animation-delay: 0.1s; }
+  .hero > *:nth-child(2) { animation-delay: 0.2s; }
+  .hero > *:nth-child(3) { animation-delay: 0.3s; }
+  .hero > *:nth-child(4) { animation-delay: 0.4s; }
+
+  @media (max-width: 600px) {
+    .nav-links { display: none; }
+    h1 { font-size: 1.8rem; }
+    .status-bar { gap: 0.5rem; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <div class="wrap nav-inner">
+    <span class="nav-logo">nelie-tchat / medsec</span>
+    <div class="nav-links">
+      <a href="#architecture">Architecture</a>
+      <a href="#security">Security</a>
+      <a href="#stack">Stack</a>
+      <a href="#roadmap">Roadmap</a>
+      <a href="https://linkedin.com/in/nelie-tchat" target="_blank">LinkedIn ↗</a>
+    </div>
+  </div>
+</nav>
+
+<div class="wrap">
+
+  <div class="hero">
+    <div class="hero-tag">DevSecOps · Healthcare · AWS</div>
+    <h1>MedSec<br><span>DevSecOps Healthcare Portal</span></h1>
+    <p class="hero-desc">
+      A security-first cloud-native reference implementation for a healthcare portal — demonstrating how to build regulated, production-grade infrastructure with zero-trust networking, automated security scanning, and no long-lived credentials.
+    </p>
+    <div class="hero-actions">
+      <a href="https://github.com/NelieTchat/aws-devSecOps-MedSec" target="_blank" class="btn btn-primary">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+        View on GitHub
+      </a>
+      <a href="https://linkedin.com/in/nelie-tchat" target="_blank" class="btn btn-ghost">Built by Nelie Tchatchouang ↗</a>
+    </div>
+  </div>
+
+  <div class="status-bar">
+    <span class="badge badge-green"><span class="dot dot-green"></span>Active Development</span>
+    <span class="badge badge-blue"><span class="dot dot-blue"></span>HCL 83% · JS 10% · Shell 5%</span>
+    <span class="badge badge-amber"><span class="dot dot-amber"></span>40+ Commits</span>
+    <span class="badge badge-green">FedRAMP-Aligned Controls</span>
+    <span class="badge badge-blue">GitHub OIDC · Zero Static Credentials</span>
+  </div>
+
+  <!-- OVERVIEW -->
+  <section>
+    <div class="section-label">Overview</div>
+    <h2>What this project demonstrates</h2>
+    <p>MedSec is a DevSecOps reference project for a healthcare portal, built to show how to ship secure infrastructure in a regulated environment — where security is a pipeline gate, not an afterthought. The architecture follows FedRAMP-aligned principles: private networking, least-privilege IAM, encrypted storage, and automated compliance checks at every stage of delivery.</p>
+    <ul class="highlight-list">
+      <li><strong>Zero public exposure</strong> — private VPC with VPC endpoints for ECR, SSM, Secrets Manager, and CloudWatch. No internet gateway, no NAT.</li>
+      <li><strong>No long-lived credentials</strong> — GitHub OIDC authenticates CI/CD pipelines with branch-scoped IAM roles. Credentials exist only for the duration of a workflow run.</li>
+      <li><strong>Security scanning on every push</strong> — Checkov scans Terraform for IaC misconfigurations, Trivy scans container images for CVEs, before any artifact reaches ECR.</li>
+      <li><strong>Modular, environment-aware IaC</strong> — Terraform split across network, ECR, and IAM modules with separate dev/staging/prod env configs. One codebase, consistent deployments.</li>
+      <li><strong>Observable by design</strong> — tagging strategy enforced across all resources (Project, Env, Owner) for cost allocation, audit trails, and incident response.</li>
+    </ul>
+  </section>
+
+  <!-- ARCHITECTURE -->
+  <section id="architecture">
+    <div class="section-label">Architecture</div>
+    <h2>Infrastructure layers</h2>
+    <p>The architecture is structured in three independent Terraform modules, each ownable and deployable separately.</p>
+    <div class="arch-grid">
+      <div class="arch-cell">
+        <span class="arch-icon">[NET]</span>
+        <h4>Network layer</h4>
+        <p>Private VPC in us-west-2 with isolated subnets and VPC endpoints. No IGW, no NAT — traffic stays inside AWS backbone.</p>
+      </div>
+      <div class="arch-cell">
+        <span class="arch-icon">[ECR]</span>
+        <h4>Container registry</h4>
+        <p>Amazon ECR with immutable image tags, scan-on-push, and lifecycle policies to cap storage. Images versioned as :env-sha.</p>
+      </div>
+      <div class="arch-cell">
+        <span class="arch-icon">[IAM]</span>
+        <h4>Identity & access</h4>
+        <p>GitHub OIDC role scoped to repository and branch. No static AWS keys anywhere — not in secrets, not in env vars.</p>
+      </div>
+      <div class="arch-cell">
+        <span class="arch-icon">[APP]</span>
+        <h4>Application</h4>
+        <p>Containerized Node.js portal with /health endpoint. Designed for ECS Fargate deployment behind ALB + WAF.</p>
+      </div>
+      <div class="arch-cell">
+        <span class="arch-icon">[CI]</span>
+        <h4>CI/CD pipeline</h4>
+        <p>GitHub Actions: authenticate via OIDC → build Docker image → run Trivy scan → push to ECR as :dev-sha.</p>
+      </div>
+      <div class="arch-cell">
+        <span class="arch-icon">[OPS]</span>
+        <h4>Observability</h4>
+        <p>Prometheus + Grafana configs in progress. All resources tagged for CloudWatch metric filtering and cost attribution.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- CI/CD -->
+  <section>
+    <div class="section-label">CI/CD Pipeline</div>
+    <h2>Every commit goes through this</h2>
+    <div class="code-block">
+<span class="cmt"># .github/workflows/dev-ci.yml — triggered on push to dev branch</span>
+
+<span class="kw">on:</span>
+  push:
+    branches: [<span class="str">dev</span>]
+
+<span class="kw">jobs:</span>
+  build-scan-push:
+    <span class="kw">permissions:</span>
+      id-token: write   <span class="cmt"># required for OIDC</span>
+      contents: read
+
+    <span class="kw">steps:</span>
+      - <span class="kw">name:</span> <span class="str">Authenticate via OIDC (no static keys)</span>
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: <span class="str">${{ secrets.CI_ROLE_ARN }}</span>
+          aws-region: <span class="str">us-west-2</span>
+
+      - <span class="kw">name:</span> <span class="str">Build Docker image</span>
+        run: docker build -t medsec-portal:${{ github.sha }} ./app
+
+      - <span class="kw">name:</span> <span class="str">Trivy scan — fail on CRITICAL CVEs</span>
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: <span class="str">medsec-portal:${{ github.sha }}</span>
+          exit-code: <span class="str">'1'</span>
+          severity: <span class="str">CRITICAL</span>
+
+      - <span class="kw">name:</span> <span class="str">Push to ECR (only if scan passes)</span>
+        run: docker push $ECR_REPO:dev-${{ github.sha }}
+    </div>
+  </section>
+
+  <!-- SECURITY -->
+  <section id="security">
+    <div class="section-label">Security Controls</div>
+    <h2>Security by design, not by checkbox</h2>
+    <p>Every control here maps to a real attack vector, not a compliance form field.</p>
+    <div class="security-grid">
+      <div class="security-card critical">
+        <div class="sec-title">// OIDC authentication</div>
+        <p class="sec-desc">GitHub Actions authenticates to AWS via federated OIDC. IAM role scoped to repo + branch. Zero static credentials in any config file or secret store.</p>
+      </div>
+      <div class="security-card critical">
+        <div class="sec-title">// Private networking</div>
+        <p class="sec-desc">All compute runs in private subnets with no internet gateway. VPC endpoints route traffic to AWS services without leaving the VPC.</p>
+      </div>
+      <div class="security-card">
+        <div class="sec-title">// IaC scanning (Checkov)</div>
+        <p class="sec-desc">Checkov runs on every Terraform change. Misconfigured S3 buckets, open security groups, and missing encryption trigger pipeline failures before apply.</p>
+      </div>
+      <div class="security-card">
+        <div class="sec-title">// Container scanning (Trivy)</div>
+        <p class="sec-desc">Trivy scans every image for known CVEs before it reaches ECR. CRITICAL severity findings block the push — no exceptions.</p>
+      </div>
+      <div class="security-card">
+        <div class="sec-title">// Immutable image tags</div>
+        <p class="sec-desc">ECR configured with image tag immutability. Once :dev-sha is pushed, it cannot be overwritten — every deployment is auditable and reproducible.</p>
+      </div>
+      <div class="security-card">
+        <div class="sec-title">// Least-privilege IAM</div>
+        <p class="sec-desc">CI role permits only ECR push and CloudWatch logging. No wildcard actions, no cross-account trust. Principle of least privilege enforced in Terraform.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- STACK -->
+  <section id="stack">
+    <div class="section-label">Tech Stack</div>
+    <h2>Tools and technologies</h2>
+    <div class="stack-grid">
+      <span class="stack-pill">Terraform</span>
+      <span class="stack-pill">AWS ECS Fargate</span>
+      <span class="stack-pill">Amazon ECR</span>
+      <span class="stack-pill">AWS VPC</span>
+      <span class="stack-pill">IAM / OIDC</span>
+      <span class="stack-pill">GitHub Actions</span>
+      <span class="stack-pill">Docker</span>
+      <span class="stack-pill">Ansible</span>
+      <span class="stack-pill">Helm</span>
+      <span class="stack-pill">Checkov</span>
+      <span class="stack-pill">Trivy</span>
+      <span class="stack-pill">Node.js</span>
+      <span class="stack-pill">Prometheus</span>
+      <span class="stack-pill">Grafana</span>
+      <span class="stack-pill">AWS Secrets Manager</span>
+      <span class="stack-pill">CloudWatch</span>
+      <span class="stack-pill">AWS WAF</span>
+      <span class="stack-pill">ALB</span>
+    </div>
+  </section>
+
+  <!-- ROADMAP -->
+  <section id="roadmap">
+    <div class="section-label">Roadmap</div>
+    <h2>What's built, what's next</h2>
+    <div class="roadmap">
+      <div class="roadmap-item">
+        <div class="roadmap-marker done">✓</div>
+        <div class="roadmap-content">
+          <h4>Private VPC + VPC endpoints</h4>
+          <p>Network layer fully provisioned. Isolated subnets, no public exposure.</p>
+        </div>
+      </div>
+      <div class="roadmap-item">
+        <div class="roadmap-marker done">✓</div>
+        <div class="roadmap-content">
+          <h4>ECR with immutable tags + scan-on-push</h4>
+          <p>Container registry with lifecycle policies and image immutability enabled.</p>
+        </div>
+      </div>
+      <div class="roadmap-item">
+        <div class="roadmap-marker done">✓</div>
+        <div class="roadmap-content">
+          <h4>GitHub OIDC CI/CD pipeline</h4>
+          <p>Build → Trivy scan → push to ECR. No static credentials anywhere in the pipeline.</p>
+        </div>
+      </div>
+      <div class="roadmap-item">
+        <div class="roadmap-marker in-progress">→</div>
+        <div class="roadmap-content">
+          <h4>ECS Fargate service + ALB + WAF</h4>
+          <p>Deploying the containerized app behind a load balancer with WAF rules for OWASP top 10.</p>
+        </div>
+      </div>
+      <div class="roadmap-item">
+        <div class="roadmap-marker in-progress">→</div>
+        <div class="roadmap-content">
+          <h4>Ansible smoke tests</h4>
+          <p>Post-deploy health checks against /health endpoint to validate successful deployments.</p>
+        </div>
+      </div>
+      <div class="roadmap-item">
+        <div class="roadmap-marker planned">○</div>
+        <div class="roadmap-content">
+          <h4>Prometheus + Grafana observability</h4>
+          <p>Metrics collection and dashboards for request rate, error rate, and latency SLIs.</p>
+        </div>
+      </div>
+      <div class="roadmap-item">
+        <div class="roadmap-marker planned">○</div>
+        <div class="roadmap-content">
+          <h4>Helm charts for EKS option</h4>
+          <p>Optional Kubernetes deployment path for teams running EKS instead of Fargate.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+</div>
+
+<footer>
+  <div class="wrap footer-inner">
+    <span class="footer-name">Nelie Tchatchouang</span>
+    <div class="footer-links">
+      <a href="https://github.com/NelieTchat/aws-devSecOps-MedSec" target="_blank">GitHub ↗</a>
+      <a href="https://linkedin.com/in/nelie-tchat" target="_blank">LinkedIn ↗</a>
+      <a href="mailto:nelien041@gmail.com">Contact</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>
