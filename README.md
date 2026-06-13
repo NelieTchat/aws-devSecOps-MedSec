@@ -28,6 +28,8 @@ It demonstrates how to build **secure, cloud-native infrastructure and applicati
 
 ## 🏗️ Current Architecture (v0.1 – Dev environment)
 
+![Architecture](docs/screenshots/medsec-architecture.png)
+
 * **Private VPC** in `us-west-2` with isolated subnets & VPC endpoints
 * **Amazon ECR**: secure repo `medsec-portal-dev`, immutable tags, lifecycle cleanup
 * **IAM + GitHub OIDC**: role restricted to the `dev` branch for CI pipelines
